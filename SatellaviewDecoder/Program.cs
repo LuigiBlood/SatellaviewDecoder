@@ -19,7 +19,7 @@ namespace SatellaviewDecoder
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("SatellaviewDecoder v0.1");
+            Console.WriteLine("SatellaviewDecoder v0.2");
             Console.WriteLine("by LuigiBlood");
 
             if (args.Length == 0)
@@ -100,6 +100,9 @@ namespace SatellaviewDecoder
 
                         if (bitstream.Count == 2048)
                         {
+                            //Descramble
+                            descramble(bitstream);
+
                             if (action == 0)
                             {
                                 //Interleaved
@@ -203,6 +206,21 @@ namespace SatellaviewDecoder
                 }
             }
             output.Add(temp);
+        }
+
+        static void descramble(List<bool> bitstream)
+        {
+            //full 2048 bit frame as input
+            List<bool> shift = new List<bool>();
+            for (int i = 0; i < 10; i++)
+                shift.Add(true);
+
+            for (int i = 16; i < bitstream.Count; i++)
+            {
+                bitstream[i] = shift[9] ^ bitstream[i];
+                shift.Insert(0, shift[6] ^ shift[9]);
+                shift.RemoveAt(10);
+            }
         }
     }
 }
