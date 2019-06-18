@@ -154,6 +154,18 @@ namespace SatellaviewDecoder
                                     }
                                 }
 
+                                if (!isModeB)
+                                {
+                                    //get Audio 4
+                                    for (int i = 0; i < 32; i++)
+                                    {
+                                        for (int j = 0; j < amountBitsAudio; j++)
+                                        {
+                                            deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 2) + i + j * 32]);
+                                        }
+                                    }
+                                }
+
                                 //get Data
                                 for (int i = 0; i < 32; i++)
                                 {
@@ -182,17 +194,13 @@ namespace SatellaviewDecoder
 
                                     if (isModeB)
                                     {
-                                        if ((frameCount & 1) == 0)
+                                        for (int i = 0; i < amountBitsAudio; i++)
                                         {
-                                            outputTemp.AddRange(deinterleaved.GetRange(64, amountBitsAudio * 32));
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2), amountBitsAudio * 32));
-                                        }
-                                        else
-                                        {
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32), amountBitsAudio * 32));
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (32 * i), amountBitsAudio));
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2) + (32 * i), amountBitsAudio));
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32) + (32 * i) + 16, amountBitsAudio));
                                         }
                                     }
-
                                     outputToBytes(outputTemp, output);
                                 }
                             }
