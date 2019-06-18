@@ -196,9 +196,15 @@ namespace SatellaviewDecoder
                                     {
                                         for (int i = 0; i < amountBitsAudio; i++)
                                         {
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (32 * i), amountBitsAudio));
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2) + (32 * i), amountBitsAudio));
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32) + (32 * i) + 16, amountBitsAudio));
+                                            //Stereo Output
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (32 * i), amountBitsAudio));                                    //L
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32) + (32 * i), amountBitsAudio));           //R
+
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2) + (32 * i), amountBitsAudio));       //L
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (32 * i) + 16, amountBitsAudio));                               //R
+
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32) + (32 * i) + 16, amountBitsAudio));      //L
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2) + (32 * i) + 16, amountBitsAudio));  //R
                                         }
                                     }
                                     outputToBytes(outputTemp, output);
