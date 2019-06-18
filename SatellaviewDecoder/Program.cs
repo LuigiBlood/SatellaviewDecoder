@@ -113,46 +113,83 @@ namespace SatellaviewDecoder
                                 //Deinterleaved
                                 List<bool> deinterleaved = new List<bool>();
 
-                                deinterleaved.AddRange(bitstream.GetRange(0, 32));
+                                deinterleaved.AddRange(bitstream.GetRange(0, 64));
 
-                                for (int i = 0; i < 63; i++)
+
+                                //Output to bytes
+                                bool isModeB = bitstream[16];
+
+                                int amountBitsAudio = 10; //Mode A
+                                int amountBitsData = 15;
+                                if (isModeB)
                                 {
-                                    for (int smp = 0; smp < 32; smp++)
+                                    amountBitsAudio = 16;
+                                    amountBitsData = 7;
+                                }
+
+                                //get Audio 1/2
+                                for (int i = 0; i < 32; i++)
+                                {
+                                    for (int j = 0; j < amountBitsAudio; j++)
                                     {
-                                        deinterleaved.Add(bitstream[32 + (smp * 63) + i]);
+                                        deinterleaved.Add(bitstream[64 + i + j * 32]);
+                                    }
+                                }
+
+                                //get Audio 2/1
+                                for (int i = 0; i < 32; i++)
+                                {
+                                    for (int j = 0; j < amountBitsAudio; j++)
+                                    {
+                                        deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio) + i + j * 32]);
+                                    }
+                                }
+
+                                //get Audio 1/2
+                                for (int i = 0; i < 32; i++)
+                                {
+                                    for (int j = 0; j < amountBitsAudio; j++)
+                                    {
+                                        deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 2) + i + j * 32]);
+                                    }
+                                }
+
+                                //get Data
+                                for (int i = 0; i < 32; i++)
+                                {
+                                    for (int j = 0; j < amountBitsData; j++)
+                                    {
+                                        deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 3) + i + j * 32]);
+                                    }
+                                }
+
+                                //get FEC
+                                for (int i = 0; i < 32; i++)
+                                {
+                                    for (int j = 0; j < 7; j++)
+                                    {
+                                        deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 3) + (amountBitsData * 32) + i + j * 32]);
                                     }
                                 }
 
                                 if (action == 1)
                                 {
-                                    //Output to bytes
                                     outputToBytes(deinterleaved, output);
                                 }
-                                else
+                                else if (action == 2)
                                 {
-                                    bool isModeA = deinterleaved[16];
                                     List<bool> outputTemp = new List<bool>();
 
-                                    if (action == 2)
+                                    if (isModeB)
                                     {
-                                        int amountBitsAudio = 16; //Mode B
-                                        if (isModeA)
-                                            amountBitsAudio = 10;
-
-                                        outputTemp.AddRange(deinterleaved.GetRange(64, amountBitsAudio * 32));
-                                    }
-                                    else
-                                    {
-                                        //Only Mode B
-                                        outputTemp.AddRange(deinterleaved.GetRange(1600, 30));
-                                        outputTemp.Add(false);
-                                        outputTemp.Add(false);
-                                        for (int i = 0; i < 224; i++)
+                                        if ((frameCount & 1) == 0)
                                         {
-                                            if (i < 176)
-                                                outputTemp.Add(deinterleaved[1600 + 30 + i]);
-                                            else
-                                                outputTemp.Add(false);
+                                            outputTemp.AddRange(deinterleaved.GetRange(64, amountBitsAudio * 32));
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2), amountBitsAudio * 32));
+                                        }
+                                        else
+                                        {
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32), amountBitsAudio * 32));
                                         }
                                     }
 
