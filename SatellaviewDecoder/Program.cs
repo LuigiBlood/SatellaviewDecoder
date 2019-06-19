@@ -19,7 +19,7 @@ namespace SatellaviewDecoder
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("SatellaviewDecoder v0.2");
+            Console.WriteLine("SatellaviewDecoder v0.3");
             Console.WriteLine("by LuigiBlood");
 
             if (args.Length == 0)
@@ -28,8 +28,8 @@ namespace SatellaviewDecoder
                 Console.WriteLine("Options:");
                 Console.WriteLine("-i   : Output interleaved frame files (Default, optional)");
                 Console.WriteLine("-d   : Output deinterleaved frame files");
-                Console.WriteLine("-ra  : Output RAW audio file (Mode B only)");
-                Console.WriteLine("-wav : Output WAV audio file (Mode B only)");
+                Console.WriteLine("-ra  : Output RAW audio file");
+                Console.WriteLine("-wav : Output WAV audio file");
             }
             else if (args.Length == 1)
             {
@@ -62,6 +62,7 @@ namespace SatellaviewDecoder
         {
             bool lastFS = false;
             bool lastCLK = false;
+            bool isModeB = false;
             List<bool> bitstream = new List<bool>();
             List<byte> output = new List<byte>();
             using (StreamReader csv = File.OpenText(filename))
@@ -117,7 +118,7 @@ namespace SatellaviewDecoder
 
 
                                 //Output to bytes
-                                bool isModeB = bitstream[16];
+                                isModeB = bitstream[16];
 
                                 int amountBitsAudio = 10; //Mode A
                                 int amountBitsData = 15;
@@ -161,26 +162,46 @@ namespace SatellaviewDecoder
                                     {
                                         for (int j = 0; j < amountBitsAudio; j++)
                                         {
-                                            deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 2) + i + j * 32]);
+                                            deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 3) + i + j * 32]);
+                                        }
+                                    }
+
+                                    //get Data
+                                    for (int i = 0; i < 32; i++)
+                                    {
+                                        for (int j = 0; j < amountBitsData; j++)
+                                        {
+                                            deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 4) + i + j * 32]);
+                                        }
+                                    }
+
+                                    //get FEC
+                                    for (int i = 0; i < 32; i++)
+                                    {
+                                        for (int j = 0; j < 7; j++)
+                                        {
+                                            deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 4) + (amountBitsData * 32) + i + j * 32]);
                                         }
                                     }
                                 }
-
-                                //get Data
-                                for (int i = 0; i < 32; i++)
+                                else
                                 {
-                                    for (int j = 0; j < amountBitsData; j++)
+                                    //get Data
+                                    for (int i = 0; i < 32; i++)
                                     {
-                                        deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 3) + i + j * 32]);
+                                        for (int j = 0; j < amountBitsData; j++)
+                                        {
+                                            deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 3) + i + j * 32]);
+                                        }
                                     }
-                                }
 
-                                //get FEC
-                                for (int i = 0; i < 32; i++)
-                                {
-                                    for (int j = 0; j < 7; j++)
+                                    //get FEC
+                                    for (int i = 0; i < 32; i++)
                                     {
-                                        deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 3) + (amountBitsData * 32) + i + j * 32]);
+                                        for (int j = 0; j < 7; j++)
+                                        {
+                                            deinterleaved.Add(bitstream[64 + (32 * amountBitsAudio * 3) + (amountBitsData * 32) + i + j * 32]);
+                                        }
                                     }
                                 }
 
@@ -194,6 +215,7 @@ namespace SatellaviewDecoder
 
                                     if (isModeB)
                                     {
+                                        //Mode B
                                         for (int i = 0; i < amountBitsAudio; i++)
                                         {
                                             //Stereo Output
@@ -205,6 +227,48 @@ namespace SatellaviewDecoder
 
                                             outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32) + (32 * i) + 16, amountBitsAudio));      //L
                                             outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2) + (32 * i) + 16, amountBitsAudio));  //R
+                                        }
+                                    }
+                                    else
+                                    {
+                                        //Mode A
+                                        for (int i = 0; i < 32; i++)
+                                        {
+                                            //1
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * i), amountBitsAudio));
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+
+                                            //2
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32) + (amountBitsAudio * i), amountBitsAudio));
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+
+                                            //3
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2) + (amountBitsAudio * i), amountBitsAudio));
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+
+                                            //4
+                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 3) + (amountBitsAudio * i), amountBitsAudio));
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
+                                            outputTemp.Add(false);
                                         }
                                     }
                                     outputToBytes(outputTemp, output);
@@ -234,9 +298,30 @@ namespace SatellaviewDecoder
                 {
                     if (action == 3)
                     {
+                        //WAV file output
                         int total_size = output.Count + 44;
 
-                        byte[] rifx_header =
+                        byte[] rifx_header_a =
+                        {
+                            0x52, 0x49, 0x46, 0x58,     //RIFX, big endian
+                            (byte)((total_size >> 24) & 0xFF),(byte)((total_size >> 16) & 0xFF),(byte)((total_size >> 8) & 0xFF),(byte)((total_size >> 0) & 0xFF),
+
+                            0x57, 0x41, 0x56, 0x45,     //WAVE
+
+                            0x66, 0x6D, 0x74, 0x20,     //fmt
+                            0x00, 0x00, 0x00, 0x10,     //Chunk Size (16 bytes)
+                            0x00, 0x01,                 //PCM Format
+                            0x00, 0x04,                 //4 tracks
+                            0x00, 0x00, 0x7D, 0x00,     //32000 Hz
+                            0x00, 0x03, 0xE8, 0x00,     //256000 B/s
+                            0x00, 0x08,                 //Block Align
+                            0x00, 0x10,                 //16-bit samples
+
+                            0x64, 0x61, 0x74, 0x61,     //data
+                            (byte)((output.Count >> 24) & 0xFF),(byte)((output.Count >> 16) & 0xFF),(byte)((output.Count >> 8) & 0xFF),(byte)((output.Count >> 0) & 0xFF)
+                        };
+
+                        byte[] rifx_header_b =
                         {
                             0x52, 0x49, 0x46, 0x58,     //RIFX, big endian
                             (byte)((total_size >> 24) & 0xFF),(byte)((total_size >> 16) & 0xFF),(byte)((total_size >> 8) & 0xFF),(byte)((total_size >> 0) & 0xFF),
@@ -248,7 +333,7 @@ namespace SatellaviewDecoder
                             0x00, 0x01,                 //PCM Format
                             0x00, 0x02,                 //Stereo
                             0x00, 0x00, 0xBB, 0x80,     //48000 Hz
-                            0x00, 0x02, 0xEE, 0x00,     //192000 bps
+                            0x00, 0x02, 0xEE, 0x00,     //192000 B/s
                             0x00, 0x04,                 //Block Align
                             0x00, 0x10,                 //16-bit samples
 
@@ -256,7 +341,10 @@ namespace SatellaviewDecoder
                             (byte)((output.Count >> 24) & 0xFF),(byte)((output.Count >> 16) & 0xFF),(byte)((output.Count >> 8) & 0xFF),(byte)((output.Count >> 0) & 0xFF)
                         };
 
-                        outputfile.Write(rifx_header, 0, rifx_header.Length);
+                        if (!isModeB)
+                            outputfile.Write(rifx_header_a, 0, rifx_header_a.Length);
+                        else
+                            outputfile.Write(rifx_header_b, 0, rifx_header_b.Length);
 
                         for (int i = 0; i < output.Count; i++)
                         {
@@ -265,6 +353,7 @@ namespace SatellaviewDecoder
                     }
                     else
                     {
+                        //RAW output
                         outputfile.Write(output.ToArray(), 0, output.Count);
                     }
                 }
