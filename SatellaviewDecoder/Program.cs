@@ -19,7 +19,7 @@ namespace SatellaviewDecoder
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("SatellaviewDecoder v0.3");
+            Console.WriteLine("SatellaviewDecoder v0.4");
             Console.WriteLine("by LuigiBlood");
 
             if (args.Length == 0)
@@ -103,6 +103,8 @@ namespace SatellaviewDecoder
                         {
                             //Descramble
                             descramble(bitstream);
+
+                            checkFEC(bitstream, frameCount);
 
                             if (action == 0)
                             {
@@ -394,6 +396,40 @@ namespace SatellaviewDecoder
                 bitstream[i] = shift[9] ^ bitstream[i];
                 shift.Insert(0, shift[6] ^ shift[9]);
                 shift.RemoveAt(10);
+            }
+        }
+
+        static void checkFEC(List<bool> bitstream, int frame)
+        {
+            //full 2048 bit frame descrambled as input
+            for (int i = 0; i < 32; i++)
+            {
+                byte shift = 0;
+
+                for (int j = 0; j < 56; j++)
+                {
+                    bool test = bitstream[32 + i + (j * 32)];
+                    byte shiftTmp = (byte)((shift >> 1) & 0x2E);
+                    shiftTmp |= (byte)(((shift & 1) ^ Convert.ToByte(test)) << 6);
+                    shiftTmp |= (byte)(((shift & 1) ^ ((shift >> 5) & 1) ^ Convert.ToByte(test)) << 4);
+                    shiftTmp |= (byte)(((shift & 1) ^ ((shift >> 1) & 1) ^ Convert.ToByte(test)) << 0);
+                    shift = shiftTmp;
+                }
+
+                byte checkFEC = 0;
+                for (int j = 0; j < 7; j++)
+                {
+                    checkFEC |= (byte)(Convert.ToByte(bitstream[32 + 32 * 56 + i + (j * 32)]) << j);
+                }
+
+                if (checkFEC != shift)
+                {
+                    Console.WriteLine(frame + ": FEC wrong (" + (i + 1) + "/32) + check 0x" + checkFEC.ToString("X02") + " vs calc 0x" + shift.ToString("X02"));
+                }
+                else
+                {
+                    //Console.WriteLine(frame + ": FEC correct (" + (i + 1) + "/32) + check 0x" + checkFEC.ToString("X02") + " vs calc 0x" + shift.ToString("X02"));
+                }
             }
         }
     }
