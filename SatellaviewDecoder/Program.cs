@@ -26,10 +26,10 @@ namespace SatellaviewDecoder
             {
                 Console.WriteLine("\nUsage: EXE <option> <csv file>");
                 Console.WriteLine("Options:");
-                Console.WriteLine("-i : Output interleaved frame files (Default, optional)");
-                Console.WriteLine("-d : Output deinterleaved frame files");
-                Console.WriteLine("-ra : Output RAW audio file");
-                Console.WriteLine("-rd : Output RAW data file");
+                Console.WriteLine("-i   : Output interleaved frame files (Default, optional)");
+                Console.WriteLine("-d   : Output deinterleaved frame files");
+                Console.WriteLine("-ra  : Output RAW audio file (Mode B only)");
+                Console.WriteLine("-wav : Output WAV audio file (Mode B only)");
             }
             else if (args.Length == 1)
             {
@@ -49,7 +49,7 @@ namespace SatellaviewDecoder
                 {
                     Extract(args[1], 2);
                 }
-                else if (args[0] == "-rd")
+                else if (args[0] == "-wav")
                 {
                     Extract(args[1], 3);
                 }
@@ -188,7 +188,7 @@ namespace SatellaviewDecoder
                                 {
                                     outputToBytes(deinterleaved, output);
                                 }
-                                else if (action == 2)
+                                else if (action >= 2)
                                 {
                                     List<bool> outputTemp = new List<bool>();
 
@@ -228,11 +228,45 @@ namespace SatellaviewDecoder
                 else if (action == 2)
                     ext = ".raw";
                 else if (action == 3)
-                    ext = ".dat";
+                    ext = ".wav";
 
                 using (FileStream outputfile = File.Create(filename + ext))
                 {
-                    outputfile.Write(output.ToArray(), 0, output.Count);
+                    if (action == 3)
+                    {
+                        int total_size = output.Count + 44;
+
+                        byte[] rifx_header =
+                        {
+                            0x52, 0x49, 0x46, 0x58,     //RIFX, big endian
+                            (byte)((total_size >> 24) & 0xFF),(byte)((total_size >> 16) & 0xFF),(byte)((total_size >> 8) & 0xFF),(byte)((total_size >> 0) & 0xFF),
+
+                            0x57, 0x41, 0x56, 0x45,     //WAVE
+
+                            0x66, 0x6D, 0x74, 0x20,     //fmt
+                            0x00, 0x00, 0x00, 0x10,     //Chunk Size (16 bytes)
+                            0x00, 0x01,                 //PCM Format
+                            0x00, 0x02,                 //Stereo
+                            0x00, 0x00, 0xBB, 0x80,     //48000 Hz
+                            0x00, 0x02, 0xEE, 0x00,     //192000 bps
+                            0x00, 0x04,                 //Block Align
+                            0x00, 0x10,                 //16-bit samples
+
+                            0x64, 0x61, 0x74, 0x61,     //data
+                            (byte)((output.Count >> 24) & 0xFF),(byte)((output.Count >> 16) & 0xFF),(byte)((output.Count >> 8) & 0xFF),(byte)((output.Count >> 0) & 0xFF)
+                        };
+
+                        outputfile.Write(rifx_header, 0, rifx_header.Length);
+
+                        for (int i = 0; i < output.Count; i++)
+                        {
+                            outputfile.WriteByte(output[i ^ 1]);
+                        }
+                    }
+                    else
+                    {
+                        outputfile.Write(output.ToArray(), 0, output.Count);
+                    }
                 }
             }
         }
