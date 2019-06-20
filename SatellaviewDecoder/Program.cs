@@ -19,7 +19,7 @@ namespace SatellaviewDecoder
     {
         static void Main(string[] args)
         {
-            Console.WriteLine("SatellaviewDecoder v0.5");
+            Console.WriteLine("SatellaviewDecoder v0.6");
             Console.WriteLine("by LuigiBlood");
 
             if (args.Length == 0)
@@ -52,6 +52,10 @@ namespace SatellaviewDecoder
                 else if (args[0] == "-wav")
                 {
                     Extract(args[1], 3);
+                }
+                else
+                {
+                    Console.WriteLine("Unknown option");
                 }
             }
 
@@ -129,21 +133,15 @@ namespace SatellaviewDecoder
                                     amountBitsData = 7;
                                 }
 
-                                //Audio 1/2 (Mode B) / Audio 1 (Mode A)
-                                deinterleave(bitstream, deinterleaved, 64, amountBitsAudio);
-
-                                //Audio 2/1 (Mode B) / Audio 2 (Mode A)
-                                deinterleave(bitstream, deinterleaved, (64 + (32 * amountBitsAudio)), amountBitsAudio);
-
-                                //Audio 1/2 (Mode B) / Audio 3 (Mode A)
-                                deinterleave(bitstream, deinterleaved, (64 + (32 * amountBitsAudio * 2)), amountBitsAudio);
+                                //Ignoring range and spare
+                                //deinterleave(bitstream, deinterleaved, 64, 62);
 
                                 if (!isModeB)
                                 {
                                     //Mode A bitstream
 
-                                    //get Audio 4
-                                    deinterleave(bitstream, deinterleaved, (64 + (32 * amountBitsAudio * 3)), amountBitsAudio);
+                                    //get Audio - format is alternating sound channels in this case
+                                    deinterleave(bitstream, deinterleaved, 64, amountBitsAudio * 4);
 
                                     //get Data
                                     deinterleave(bitstream, deinterleaved, (64 + (32 * amountBitsAudio * 4)), amountBitsData);
@@ -155,12 +153,16 @@ namespace SatellaviewDecoder
                                 {
                                     //Mode B bitstream
 
+                                    //get Audio
+                                    deinterleave(bitstream, deinterleaved, 64, amountBitsAudio * 3);
+
                                     //get Data
                                     deinterleave(bitstream, deinterleaved, (64 + (32 * amountBitsAudio * 3)), amountBitsData);
 
                                     //get FEC
                                     deinterleave(bitstream, deinterleaved, (64 + (32 * amountBitsAudio * 3) + (amountBitsData * 32)), 7);
                                 }
+                                
 
                                 if (action == 1)
                                 {
@@ -174,54 +176,15 @@ namespace SatellaviewDecoder
 
                                     if (isModeB)
                                     {
-                                        //Mode B
-                                        for (int i = 0; i < amountBitsAudio; i++)
-                                        {
-                                            //Stereo Output
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (32 * i), amountBitsAudio));                                    //L
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32) + (32 * i), amountBitsAudio));           //R
-
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2) + (32 * i), amountBitsAudio));       //L
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (32 * i) + 16, amountBitsAudio));                               //R
-
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32) + (32 * i) + 16, amountBitsAudio));      //L
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2) + (32 * i) + 16, amountBitsAudio));  //R
-                                        }
+                                        //Mode B - copy as is
+                                        outputTemp.AddRange(deinterleaved.GetRange(64, amountBitsAudio * 3 * 32));
                                     }
                                     else
                                     {
                                         //Mode A - convert 10 bit samples to 16 bit with padding
-                                        for (int i = 0; i < 32; i++)
+                                        for (int i = 0; i < 32 * 4; i++)
                                         {
-                                            //1
                                             outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * i), amountBitsAudio));
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-
-                                            //2
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32) + (amountBitsAudio * i), amountBitsAudio));
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-
-                                            //3
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 2) + (amountBitsAudio * i), amountBitsAudio));
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-                                            outputTemp.Add(false);
-
-                                            //4
-                                            outputTemp.AddRange(deinterleaved.GetRange(64 + (amountBitsAudio * 32 * 3) + (amountBitsAudio * i), amountBitsAudio));
                                             outputTemp.Add(false);
                                             outputTemp.Add(false);
                                             outputTemp.Add(false);
@@ -264,42 +227,42 @@ namespace SatellaviewDecoder
 
                         byte[] rifx_header_a =
                         {
-                            0x52, 0x49, 0x46, 0x58,     //RIFX, big endian
-                            (byte)((total_size >> 24) & 0xFF),(byte)((total_size >> 16) & 0xFF),(byte)((total_size >> 8) & 0xFF),(byte)((total_size >> 0) & 0xFF),
+                            0x52, 0x49, 0x46, 0x46,     //RIFF, little endian
+                            (byte)((total_size >> 0) & 0xFF),(byte)((total_size >> 8) & 0xFF),(byte)((total_size >> 16) & 0xFF),(byte)((total_size >> 24) & 0xFF),
 
                             0x57, 0x41, 0x56, 0x45,     //WAVE
 
                             0x66, 0x6D, 0x74, 0x20,     //fmt
-                            0x00, 0x00, 0x00, 0x10,     //Chunk Size (16 bytes)
-                            0x00, 0x01,                 //PCM Format
-                            0x00, 0x04,                 //4 tracks
-                            0x00, 0x00, 0x7D, 0x00,     //32000 Hz
-                            0x00, 0x03, 0xE8, 0x00,     //256000 B/s
-                            0x00, 0x08,                 //Block Align
-                            0x00, 0x10,                 //16-bit samples
+                            0x10, 0x00, 0x00, 0x00,     //Chunk Size (16 bytes)
+                            0x01, 0x00,                 //PCM Format
+                            0x04, 0x00,                 //4 tracks
+                            0x00, 0x7D, 0x00, 0x00,     //32000 Hz
+                            0x00, 0xE8, 0x03, 0x00,     //256000 B/s
+                            0x08, 0x00,                 //Block Align
+                            0x10, 0x00,                 //16-bit samples
 
                             0x64, 0x61, 0x74, 0x61,     //data
-                            (byte)((output.Count >> 24) & 0xFF),(byte)((output.Count >> 16) & 0xFF),(byte)((output.Count >> 8) & 0xFF),(byte)((output.Count >> 0) & 0xFF)
+                            (byte)((output.Count >> 0) & 0xFF),(byte)((output.Count >> 8) & 0xFF),(byte)((output.Count >> 16) & 0xFF),(byte)((output.Count >> 24) & 0xFF)
                         };
 
                         byte[] rifx_header_b =
                         {
-                            0x52, 0x49, 0x46, 0x58,     //RIFX, big endian
-                            (byte)((total_size >> 24) & 0xFF),(byte)((total_size >> 16) & 0xFF),(byte)((total_size >> 8) & 0xFF),(byte)((total_size >> 0) & 0xFF),
+                            0x52, 0x49, 0x46, 0x46,     //RIFF, little endian
+                            (byte)((total_size >> 0) & 0xFF),(byte)((total_size >> 8) & 0xFF),(byte)((total_size >> 16) & 0xFF),(byte)((total_size >> 24) & 0xFF),
 
                             0x57, 0x41, 0x56, 0x45,     //WAVE
 
                             0x66, 0x6D, 0x74, 0x20,     //fmt
-                            0x00, 0x00, 0x00, 0x10,     //Chunk Size (16 bytes)
-                            0x00, 0x01,                 //PCM Format
-                            0x00, 0x02,                 //Stereo
-                            0x00, 0x00, 0xBB, 0x80,     //48000 Hz
-                            0x00, 0x02, 0xEE, 0x00,     //192000 B/s
-                            0x00, 0x04,                 //Block Align
-                            0x00, 0x10,                 //16-bit samples
+                            0x10, 0x00, 0x00, 0x00,     //Chunk Size (16 bytes)
+                            0x01, 0x00,                 //PCM Format
+                            0x02, 0x00,                 //Stereo
+                            0x80, 0xBB, 0x00, 0x00,     //48000 Hz
+                            0x00, 0xEE, 0x02, 0x00,     //192000 B/s
+                            0x04, 0x00,                 //Block Align
+                            0x10, 0x00,                 //16-bit samples
 
                             0x64, 0x61, 0x74, 0x61,     //data
-                            (byte)((output.Count >> 24) & 0xFF),(byte)((output.Count >> 16) & 0xFF),(byte)((output.Count >> 8) & 0xFF),(byte)((output.Count >> 0) & 0xFF)
+                            (byte)((output.Count >> 0) & 0xFF),(byte)((output.Count >> 8) & 0xFF),(byte)((output.Count >> 16) & 0xFF),(byte)((output.Count >> 24) & 0xFF)
                         };
 
                         if (!isModeB)
