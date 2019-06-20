@@ -404,16 +404,16 @@ namespace SatellaviewDecoder
             //full 2048 bit frame descrambled as input
             for (int i = 0; i < 32; i++)
             {
-                byte shift = 0;
+                byte shift = 0;     //7-bit Shift register
 
                 for (int j = 0; j < 56; j++)
                 {
-                    bool test = bitstream[32 + i + (j * 32)];
-                    byte shiftTmp = (byte)((shift >> 1) & 0x2E);
-                    shiftTmp |= (byte)(((shift & 1) ^ Convert.ToByte(test)) << 6);
-                    shiftTmp |= (byte)(((shift & 1) ^ ((shift >> 5) & 1) ^ Convert.ToByte(test)) << 4);
-                    shiftTmp |= (byte)(((shift & 1) ^ ((shift >> 1) & 1) ^ Convert.ToByte(test)) << 0);
-                    shift = shiftTmp;
+                    bool test = bitstream[32 + i + (j * 32)];                   //data.bit
+                    bool shift0 = ((shift & 1) == 1);                           //shift.bit0 (before shift)
+                    shift >>= 1;                                                //shift >> 1 (it does not rotate)
+                    shift ^= (byte)(Convert.ToByte(shift0 ^ test) << 6);        //shift.bit6 ^= shift0 ^ data.bit
+                    shift ^= (byte)(Convert.ToByte(shift0 ^ test) << 4);        //shift.bit4 ^= shift0 ^ data.bit
+                    shift ^= (byte)(Convert.ToByte(shift0 ^ test) << 0);        //shift.bit0 ^= shift0 ^ data.bit
                 }
 
                 byte checkFEC = 0;
